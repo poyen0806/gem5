@@ -13,6 +13,16 @@ ubuntu-18.04(推薦版本)開不了機，查了一下發現是apple晶片在搞�
 基本上都是把L2複製然後稍微改一下
 
 在`./config/common/Caches.py`複製L2Cache的class製作L3Cache的class
+```python
+class L3Cache(Cache):
+    assoc = 64
+    tag_latency = 32
+    data_latency = 32
+    response_latency = 32
+    mshrs = 32
+    tgts_per_mshr = 24
+    write_buffers = 16
+```
 
 在`./config/common/CacheConfig.py`找到
 ```python
@@ -153,7 +163,7 @@ scons EXTRAS=../NVmain build/X86/gem5.opt
 ./build/X86/gem5.opt configs/example/se.py -c tests/test-progs/hello/bin/x86/linux/hello --cpu-type=TimingSimpleCPU --caches --l2cache --l3cache --mem-type=NVMainMemory --nvmain-config=../NVmain/Config/PCM_ISSCC_2012_4GB.config
 ```
 
-### Config last level cache to 2-way and full-way associative cache and test performance
+### (Q3) Config last level cache to 2-way and full-way associative cache and test performance
 
 使用指令編譯`./quicksort.c`產生`./quicksort`
 ```
@@ -168,7 +178,7 @@ gcc --static quicksort.c -o quicksort
 
 然後將`./m5out`複製到`./Q3/2-way/`
 ```
-cp ./m5out ./Q3/2-way -r
+cp ./m5out ./Q3/2-way/ -r
 ```
 
 再執行full-way的(--l3_assoc改成1)，並將結果存到`./Q3/full-way/log.txt`
@@ -178,8 +188,124 @@ cp ./m5out ./Q3/2-way -r
 
 然後將`./m5out`複製到`./Q3/full-way/`
 ```
-cp ./m5out ./Q3/full-way -r
+cp ./m5out ./Q3/full-way/ -r
 ```
 
 結果如下：
 ![](https://github.com/poyen0806/gem5/blob/master/Q3.png)
+
+**備註：原本的quicksort是100000，較看不出差別，所以改成1000000**
+
+### (Q4) Modify last level cache policy based on frequency based replacement policy
+
+**我這邊是選用multiply**
+
+先執行一次，並存到`./Q4/policy/log.txt`
+```
+./build/X86/gem5.opt configs/example/se.py -c ./multiply --cpu-type=TimingSimpleCPU --caches --l2cache --l3cache --l1i_size=32kB --l1d_size=32kB --l2_size=128kB --l3_size=1MB --mem-type=NVMainMemory --nvmain-config=../NVmain/Config/PCM_ISSCC_2012_4GB.config>./Q4/policy/log.txt
+```
+
+然後將`./m5out`複製到`./Q4/policy/`
+```
+cp ./m5out ./Q4/policy/ -r
+```
+
+到`./config/common/Caches.py`找到`L3Cache`改成
+```python
+class L3Cache(Cache):
+    assoc = 64
+    tag_latency = 32
+    data_latency = 32
+    response_latency = 32
+    mshrs = 32
+    tgts_per_mshr = 24
+    write_buffers = 16
+    
+    # 加了這個
+    replacement_policy = Param.BaseReplacementPolicy(
+        LFURP(), "Replacement policy"
+    )
+```
+
+然後混合編譯
+```
+scons EXTRAS=../NVmain build/X86/gem5.opt
+```
+
+再執行一次，並存到`./Q4/freq_base_policy/log.txt`
+```
+./build/X86/gem5.opt configs/example/se.py -c ./multiply --cpu-type=TimingSimpleCPU --caches --l2cache --l3cache --l1i_size=32kB --l1d_size=32kB --l2_size=128kB --l3_size=1MB --mem-type=NVMainMemory --nvmain-config=../NVmain/Config/PCM_ISSCC_2012_4GB.config>./Q4/freq_base_policy/log.txt
+```
+
+然後將`./m5out`複製到`./Q4/freq_base_policy/`
+```
+cp ./m5out ./Q4/freq_base_policy/ -r
+```
+
+結果如下：
+![](https://github.com/poyen0806/gem5/blob/master/Q4.png)
+
+### (Q5) Test the performance of write back and write through policy based on 4-way associative cache with isscc_pcm
+
+**我quicksort跟multiply都有做，這邊以multiply為例**
+
+先執行一次，並存到`./Q5/write_back/multiply/log.txt`
+```
+./build/X86/gem5.opt configs/example/se.py -c ./multiply --cpu-type=TimingSimpleCPU --caches --l2cache --l3cache --l3_assoc=4 --l1i_size=32kB --l1d_size=32kB --l2_size=128kB --l3_size=1MB --mem-type=NVMainMemory --nvmain-config=../NVmain/Config/PCM_ISSCC_2012_4GB.config>./Q5/write_back/multiply/log.txt
+```
+
+然後將`./m5out`複製到`./Q5/write_back/multiply/`
+```
+cp ./m5out ./Q5/write_back/multiply/ -r
+```
+
+到`./src/mem/cache/base.cc`找到以下片段(大概在1072行左右)
+```cc
+else if (blk && (pkt->needsWritable() ? blk->isWritable() :
+                       blk->isReadable())) {
+        // OK to satisfy access
+        incHitCount(pkt);
+        satisfyRequest(pkt, blk);
+        maintainClusivity(pkt->fromCache(), blk);
+
+        return true;
+    }
+```
+
+把這部分加上一些東西改成
+```cc
+else if (blk && (pkt->needsWritable() ? blk->isWritable() :
+                       blk->isReadable())) {
+        // OK to satisfy access
+        incHitCount(pkt);
+        satisfyRequest(pkt, blk);
+        maintainClusivity(pkt->fromCache(), blk);
+
+        // 加上這段
+        if (blk->isWritable()) {
+            PacketPtr writeclean_pkt = writecleanBlk(
+                            blk, pkt->req->getDest(), pkt->id);
+            writebacks.push_back(writeclean_pkt);
+        }
+
+        return true;
+    }
+```
+
+然後混合編譯
+```
+scons EXTRAS=../NVmain build/X86/gem5.opt
+```
+
+再執行一次，並存到`./Q5/write_through/multiply/log.txt`
+```
+./build/X86/gem5.opt configs/example/se.py -c ./multiply --cpu-type=TimingSimpleCPU --caches --l2cache --l3cache --l3_assoc=4 --l1i_size=32kB --l1d_size=32kB --l2_size=128kB --l3_size=1MB --mem-type=NVMainMemory --nvmain-config=../NVmain/Config/PCM_ISSCC_2012_4GB.config>./Q5/write_through/multiply/log.txt
+```
+
+然後將`./m5out`複製到`./Q5/write_through/multiply/`
+```
+cp ./m5out ./Q5/write_through/multiply/ -r
+```
+
+結果如下：
+![](https://github.com/poyen0806/gem5/blob/master/Q5.png)
