@@ -192,7 +192,7 @@ cp ./m5out ./Q3/full-way/ -r
 ```
 
 結果如下：
-![](https://github.com/poyen0806/gem5/blob/master/Q3.png)
+![](https://github.com/poyen0806/gem5/blob/master/result_image/Q3.png)
 
 **備註：原本的quicksort是100000，較看不出差別，所以改成1000000**
 
@@ -243,7 +243,7 @@ cp ./m5out ./Q4/freq_base_policy/ -r
 ```
 
 結果如下：
-![](https://github.com/poyen0806/gem5/blob/master/Q4.png)
+![](https://github.com/poyen0806/gem5/blob/master/result_image/Q4.png)
 
 ### (Q5) Test the performance of write back and write through policy based on 4-way associative cache with isscc_pcm
 
@@ -308,4 +308,4 @@ cp ./m5out ./Q5/write_through/multiply/ -r
 ```
 
 結果如下：
-![](https://github.com/poyen0806/gem5/blob/master/Q5.png)
+![](https://github.com/poyen0806/gem5/blob/master/result_image/Q5.png)
