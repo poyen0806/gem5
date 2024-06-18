@@ -182,4 +182,4 @@ cp ./m5out ./Q3/full-way -r
 ```
 
 結果如下：
-![](https://hackmd.io/_uploads/H1TBkByLR.png)
+![](https://github.com/poyen0806/gem5/blob/master/Q3.png)
