@@ -770,9 +770,9 @@
             "replacement_policy": {
                 "eventq_index": 0, 
                 "path": "system.l3.replacement_policy", 
-                "type": "LFURP", 
+                "type": "LRURP", 
                 "name": "replacement_policy", 
-                "cxx_class": "LFURP"
+                "cxx_class": "LRURP"
             }, 
             "cpu_side": {
                 "peer": "system.tol3bus.master[0]", 
