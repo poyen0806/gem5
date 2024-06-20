@@ -12,7 +12,7 @@ ubuntu-18.04(推薦版本)開不了機，查了一下發現是apple晶片在搞�
 
 基本上都是把L2複製然後稍微改一下
 
-在`./config/common/Caches.py`複製L2Cache的class製作L3Cache的class
+在`./configs/common/Caches.py`複製L2Cache的class製作L3Cache的class
 ```python
 class L3Cache(Cache):
     assoc = 64
@@ -24,7 +24,7 @@ class L3Cache(Cache):
     write_buffers = 16
 ```
 
-在`./config/common/CacheConfig.py`找到
+在`./configs/common/CacheConfig.py`找到
 ```python
 dcache_class, icache_class, l2_cache_class, walk_cache_class = (
     core.O3_ARM_v7a_DCache,
@@ -138,7 +138,7 @@ def addThreeLevelCacheHierarchy(self, ic, dc, l3c, iwc = None, dwc = None):
         self._cached_ports = ['l3cache.mem_side']
 ```
 
-再到`./config/common/Options.py`找到
+再到`./configs/common/Options.py`找到
 ```python
 parser.add_argument("--caches", action="store_true")
 parser.add_argument("--l2cache", action="store_true")
@@ -210,7 +210,7 @@ cp ./m5out ./Q3/full-way/ -r
 cp ./m5out ./Q4/policy/ -r
 ```
 
-到`./config/common/Caches.py`找到`L3Cache`改成
+到`./configs/common/Caches.py`找到`L3Cache`改成
 ```python
 class L3Cache(Cache):
     assoc = 64
